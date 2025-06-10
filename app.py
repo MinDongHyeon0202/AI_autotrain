@@ -1,78 +1,70 @@
-
 from flask import Flask, render_template, request
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
-import numpy as np
 from datetime import datetime, timedelta
-import pytz
+import requests
+import os
 
 app = Flask(__name__)
+WEATHER_API_KEY = os.getenv("VISUAL_API_KEY") or "R7QNF6MDDL3YE8D5SY3A3XGQH"
 
-# CSV에서 직접 학습
-df = pd.read_csv("sample_weather_data.csv")
-le_job = LabelEncoder()
-le_result = LabelEncoder()
-df["공정코드"] = le_job.fit_transform(df["공정"])
-df["결과코드"] = le_result.fit_transform(df["결과"])
-
-X = df[["온도", "습도", "풍속", "강수량", "공정코드"]]
-y = df["결과코드"]
-
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X, y)
-
-# 공정 목록 (웹용)
-JOB_OPTIONS = {
-    "formwork": "외부비계설치",
-    "concrete_floor": "기초타설",
-    "interior_paint": "내부 도장",
-    "floor_finish": "방통",
-    "floor1": "1층 타설",
-    "roof": "지붕 타설"
-}
-
-def predict(job, temp, humidity, wind, rain):
+def get_weather(date, city="Seoul"):
+    url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{city}/{date}/{date}?unitGroup=metric&include=days&key={WEATHER_API_KEY}&contentType=json"
+    res = requests.get(url)
+    if res.status_code != 200:
+        return None
     try:
-        job_label = le_job.transform([job])[0]
-        features = np.array([[temp, humidity, wind, rain, job_label]])
-        pred = model.predict(features)
-        return le_result.inverse_transform(pred)[0]
-    except Exception as e:
-        return f"에러: {e}"
+        data = res.json()["days"][0]
+        return {
+            "temp": data.get("temp", 0),
+            "humidity": data.get("humidity", 0),
+            "windspeed": data.get("windspeed", 0),
+            "precip": data.get("precip", 0)
+        }
+    except:
+        return None
+
+def is_workable(process, temp, humidity, wind, rain):
+    if rain > 2:
+        return False, "강수량"
+    if temp < -5 or temp > 35:
+        return False, "온도"
+    if humidity > 90 and "도장" in process:
+        return False, "습도"
+    if "타설" in process and rain > 0:
+        return False, "비 예보"
+    return True, "가능"
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    today = datetime.now(pytz.timezone("Asia/Seoul")).date()
-    result_list = []
-    selected_job = request.form.get("job_type", "concrete_floor")
-    start = request.form.get("start_date", str(today))
-    end = request.form.get("end_date", str(today + timedelta(days=7)))
-
-    if request.method == "POST":
-        for i in range(7):
-            date = datetime.strptime(start, "%Y-%m-%d") + timedelta(days=i)
-            temp = 20 + i
-            humidity = 60 + (i % 3) * 10
-            wind = 1.5
-            rain = 0.0 if i % 2 == 0 else 3.0
-            prediction = predict(selected_job, temp, humidity, wind, rain)
-            result_list.append({
-                "날짜": date.strftime("%Y-%m-%d"),
-                "온도": temp,
-                "습도": humidity,
-                "풍속": wind,
-                "강수량": rain,
-                "예측결과": prediction
-            })
-
-    return render_template("index.html",
-        results=result_list,
-        job_options=JOB_OPTIONS,
-        job_key=selected_job,
-        start_date=start,
-        end_date=end
-    )
+    results = []
+    df = pd.read_csv("AI진단용_공정표_정제본.csv")
+    for _, row in df.iterrows():
+        process = row["공정명"]
+        start = pd.to_datetime(row["시작일"])
+        end = pd.to_datetime(row["종료일"])
+        total_days = (end - start).days + 1
+        ok_days = 0
+        reasons = []
+        for i in range(total_days):
+            date = (start + timedelta(days=i)).strftime("%Y-%m-%d")
+            weather = get_weather(date)
+            if weather:
+                workable, reason = is_workable(process, **weather)
+                if workable:
+                    ok_days += 1
+                else:
+                    reasons.append(f"{date}: {reason}")
+        extension = max(0, total_days - ok_days)
+        results.append({
+            "공정명": process,
+            "기간": f"{start.date()} ~ {end.date()}",
+            "총일수": total_days,
+            "작업가능일수": ok_days,
+            "예상연장": extension,
+            "불가사유": "; ".join(reasons)
+        })
+    return render_template("index.html", results=results)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)

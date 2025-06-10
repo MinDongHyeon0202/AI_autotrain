@@ -1,47 +1,35 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>AI 공정 예측</title>
+  <title>AI 공정 일정 진단</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; }
+    body { font-family: sans-serif; padding: 30px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #aaa; padding: 8px; text-align: center; }
-    th { background-color: #f0f0f0; }
+    th { background-color: #eee; }
   </style>
 </head>
 <body>
-  <h2>CSV 기반 AI 공정 예측 시스템</h2>
-  <form method="post">
-    <label>작업 선택:</label>
-    <select name="job_type">
-      {% for key, label in job_options.items() %}
-        <option value="{{ key }}" {% if job_key == key %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    <label>시작일:</label>
-    <input type="date" name="start_date" value="{{ start_date }}">
-    <button type="submit">예측 실행</button>
-  </form>
-
+  <h2>📋 공정별 AI 일정 진단 결과</h2>
   {% if results %}
-    <h3>예측 결과</h3>
-    <table>
-      <tr>
-        <th>날짜</th><th>온도</th><th>습도</th><th>풍속</th><th>강수량</th><th>예측</th>
-      </tr>
-      {% for row in results %}
-      <tr>
-        <td>{{ row.날짜 }}</td>
-        <td>{{ row.온도 }}</td>
-        <td>{{ row.습도 }}</td>
-        <td>{{ row.풍속 }}</td>
-        <td>{{ row.강수량 }}</td>
-        <td>{{ row.예측결과 }}</td>
-      </tr>
-      {% endfor %}
-    </table>
+  <table>
+    <tr>
+      <th>공정명</th><th>기간</th><th>총일수</th><th>작업가능일수</th><th>예상연장일</th><th>불가사유</th>
+    </tr>
+    {% for row in results %}
+    <tr>
+      <td>{{ row["공정명"] }}</td>
+      <td>{{ row["기간"] }}</td>
+      <td>{{ row["총일수"] }}</td>
+      <td>{{ row["작업가능일수"] }}</td>
+      <td>{{ row["예상연장"] }}</td>
+      <td>{{ row["불가사유"] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>결과 없음</p>
   {% endif %}
 </body>
 </html>

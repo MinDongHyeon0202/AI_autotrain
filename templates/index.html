@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>AI 공정 일정 진단</title>
+  <style>
+    body { font-family: sans-serif; padding: 30px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #aaa; padding: 8px; text-align: center; }
+    th { background-color: #eee; }
+  </style>
+</head>
+<body>
+  <h2>📋 공정별 AI 일정 진단 결과</h2>
+  {% if results %}
+  <table>
+    <tr>
+      <th>공정명</th><th>기간</th><th>총일수</th><th>작업가능일수</th><th>예상연장일</th><th>불가사유</th>
+    </tr>
+    {% for row in results %}
+    <tr>
+      <td>{{ row["공정명"] }}</td>
+      <td>{{ row["기간"] }}</td>
+      <td>{{ row["총일수"] }}</td>
+      <td>{{ row["작업가능일수"] }}</td>
+      <td>{{ row["예상연장"] }}</td>
+      <td>{{ row["불가사유"] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>결과 없음</p>
+  {% endif %}
+</body>
+</html>

@@ -23,17 +23,17 @@ def get_weather(date, city="Seoul"):
     except:
         return None
 
-def is_workable(process, temp, humidity, wind, rain):
-    if rain > 2:
+def is_workable(process, temp, humidity, windspeed, precip):
+    if precip > 2:
         return False, "강수량"
     if temp < -5 or temp > 35:
         return False, "온도"
     if humidity > 90 and "도장" in process:
         return False, "습도"
-    if "타설" in process and rain > 0:
+    if "타설" in process and precip > 0:
         return False, "비 예보"
     return True, "가능"
-
+    
 @app.route("/", methods=["GET", "POST"])
 def index():
     results = []
